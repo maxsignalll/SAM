@@ -1,0 +1,261 @@
+{
+  "general_experiment_setup": {
+    "experiment_name": "Burst_Scan_HotRate_Manipulation",
+    "workload_mode": "dynamic",
+    "workload_type": "ycsb",
+    "random_seed": 42,
+    "output_directory": "results",
+    "log_level": "INFO",
+    "active_strategy": "B7_DYNAMIC_NEED",
+    "reporting_interval_seconds": 4,
+    "measurement_interval_seconds": 4,
+    "data_collection_timeout_seconds": 1.0,
+    "_comment": "利用Phase2B短暂扰动触发5.5倍过度反应"
+  },
+  "system_sqlite_config": {
+    "page_size_bytes": 4096,
+    "total_ram_for_cache_mb": 1,
+    "_comment": "256页总缓存，创造缓存竞争环境"
+  },
+  "dynamic_workload_phases": [
+    {
+      "name": "Phase1_Baseline",
+      "duration_seconds": 30,
+      "_comment": "0-30秒：初始化阶段",
+      "ycsb_config_overrides": {
+        "threadcount": 12,
+        "tps_distribution_per_db": {
+          "db_high_priority": 30,
+          "db_medium_priority": 25,
+          "db_low_priority": 20,
+          "db_bg_1": 8, "db_bg_2": 8, "db_bg_3": 8,
+          "db_bg_4": 8, "db_bg_5": 8, "db_bg_6": 8, "db_bg_7": 8
+        },
+        "access_pattern_per_db": {
+          "db_high_priority": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_medium_priority": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_low_priority": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_1": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_2": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_3": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_4": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_5": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_6": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_7": { "distribution": "zipfian", "zipf_alpha": 0.99 }
+        }
+      }
+    },
+    {
+      "name": "Phase2A_Normal",
+      "duration_seconds": 60,
+      "_comment": "30-90秒：建立稳定基线，need约21",
+      "ycsb_config_overrides": {
+        "threadcount": 12,
+        "tps_distribution_per_db": {
+          "db_high_priority": 70,
+          "db_medium_priority": 25,
+          "db_low_priority": 20,
+          "db_bg_1": 5, "db_bg_2": 5, "db_bg_3": 5,
+          "db_bg_4": 5, "db_bg_5": 5, "db_bg_6": 5, "db_bg_7": 5
+        },
+        "access_pattern_per_db": {
+          "db_high_priority": { 
+            "distribution": "zipfian", 
+            "zipf_alpha": 0.72,
+            "_comment": "基线：70 TPS * 30% miss = need 21" 
+          },
+          "db_medium_priority": { "distribution": "zipfian", "zipf_alpha": 0.85 },
+          "db_low_priority": { "distribution": "zipfian", "zipf_alpha": 0.85 },
+          "db_bg_1": { "distribution": "zipfian", "zipf_alpha": 0.90 },
+          "db_bg_2": { "distribution": "zipfian", "zipf_alpha": 0.90 },
+          "db_bg_3": { "distribution": "zipfian", "zipf_alpha": 0.90 },
+          "db_bg_4": { "distribution": "zipfian", "zipf_alpha": 0.90 },
+          "db_bg_5": { "distribution": "zipfian", "zipf_alpha": 0.90 },
+          "db_bg_6": { "distribution": "zipfian", "zipf_alpha": 0.90 },
+          "db_bg_7": { "distribution": "zipfian", "zipf_alpha": 0.90 }
+        }
+      }
+    },
+    {
+      "name": "Phase2B_Burst_Scan",
+      "duration_seconds": 15,
+      "_comment": "90-105秒：极端扰动！更长时间积累",
+      "ycsb_config_overrides": {
+        "threadcount": 12,
+        "tps_distribution_per_db": {
+          "db_high_priority": 400,
+          "db_medium_priority": 40,
+          "db_low_priority": 30,
+          "db_bg_1": 10, "db_bg_2": 10, "db_bg_3": 10,
+          "db_bg_4": 10, "db_bg_5": 10, "db_bg_6": 10, "db_bg_7": 10
+        },
+        "access_pattern_per_db": {
+          "db_high_priority": { 
+            "distribution": "zipfian", 
+            "zipf_alpha": 0.45,
+            "_comment": "400 TPS * 55% miss = need 220（10.5倍）"
+          },
+          "db_medium_priority": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_low_priority": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_1": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_2": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_3": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_4": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_5": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_6": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_7": { "distribution": "zipfian", "zipf_alpha": 0.99 }
+        }
+      }
+    },
+    {
+      "name": "Phase2C_Recovery",
+      "duration_seconds": 60,
+      "_comment": "105-165秒：恢复期，但EMA仍保留高值",
+      "ycsb_config_overrides": {
+        "threadcount": 12,
+        "tps_distribution_per_db": {
+          "db_high_priority": 70,
+          "db_medium_priority": 20,
+          "db_low_priority": 15,
+          "db_bg_1": 3, "db_bg_2": 3, "db_bg_3": 3,
+          "db_bg_4": 3, "db_bg_5": 3, "db_bg_6": 3, "db_bg_7": 3
+        },
+        "access_pattern_per_db": {
+          "db_high_priority": { 
+            "distribution": "zipfian",
+            "zipf_alpha": 0.72,
+            "_comment": "恢复基线：70 TPS * 30% miss = need 21"
+          },
+          "db_medium_priority": { "distribution": "zipfian", "zipf_alpha": 0.95 },
+          "db_low_priority": { "distribution": "zipfian", "zipf_alpha": 0.95 },
+          "db_bg_1": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_2": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_3": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_4": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_5": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_6": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_7": { "distribution": "zipfian", "zipf_alpha": 0.99 }
+        }
+      }
+    },
+    {
+      "name": "Phase2D_Second_Burst",
+      "duration_seconds": 30,
+      "_comment": "165-195秒：触发期！匹配脚本预期",
+      "ycsb_config_overrides": {
+        "threadcount": 12,
+        "tps_distribution_per_db": {
+          "db_high_priority": 75,
+          "db_medium_priority": 25,
+          "db_low_priority": 20,
+          "db_bg_1": 5, "db_bg_2": 5, "db_bg_3": 5,
+          "db_bg_4": 5, "db_bg_5": 5, "db_bg_6": 5, "db_bg_7": 5
+        },
+        "access_pattern_per_db": {
+          "db_high_priority": { 
+            "distribution": "zipfian", 
+            "zipf_alpha": 0.72,
+            "_comment": "75 TPS * 30% miss = need 22.5（增7.1%）"
+          },
+          "db_medium_priority": { "distribution": "zipfian", "zipf_alpha": 0.85 },
+          "db_low_priority": { "distribution": "zipfian", "zipf_alpha": 0.85 },
+          "db_bg_1": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_2": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_3": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_4": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_5": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_6": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_7": { "distribution": "zipfian", "zipf_alpha": 0.99 }
+        }
+      }
+    },
+    {
+      "name": "Phase2E_Final_Normal",
+      "duration_seconds": 45,
+      "_comment": "195-240秒：恢复正常",
+      "ycsb_config_overrides": {
+        "threadcount": 12,
+        "tps_distribution_per_db": {
+          "db_high_priority": 80,
+          "db_medium_priority": 45,
+          "db_low_priority": 35,
+          "db_bg_1": 12, "db_bg_2": 12, "db_bg_3": 12,
+          "db_bg_4": 12, "db_bg_5": 12, "db_bg_6": 12, "db_bg_7": 12
+        },
+        "access_pattern_per_db": {
+          "db_high_priority": { "distribution": "zipfian", "zipf_alpha": 0.95 },
+          "db_medium_priority": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_low_priority": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_1": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_2": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_3": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_4": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_5": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_6": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_7": { "distribution": "zipfian", "zipf_alpha": 0.99 }
+        }
+      }
+    },
+    {
+      "name": "Phase3_Competition",
+      "duration_seconds": 50,
+      "_comment": "250-300秒：竞争阶段（调整时长）",
+      "ycsb_config_overrides": {
+        "threadcount": 12,
+        "tps_distribution_per_db": {
+          "db_high_priority": 90,
+          "db_medium_priority": 50,
+          "db_low_priority": 40,
+          "db_bg_1": 13, "db_bg_2": 13, "db_bg_3": 13,
+          "db_bg_4": 13, "db_bg_5": 13, "db_bg_6": 13, "db_bg_7": 13
+        },
+        "access_pattern_per_db": {
+          "db_high_priority": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_medium_priority": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_low_priority": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_1": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_2": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_3": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_4": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_5": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_6": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+          "db_bg_7": { "distribution": "zipfian", "zipf_alpha": 0.99 }
+        }
+      }
+    }
+  ],
+  "database_instances": [
+    { "id": "db_high_priority", "db_filename": "data/type2_burst/db_high_opt.sqlite", "base_priority": 10, "ycsb_initial_record_count": 300000 },
+    { "id": "db_medium_priority", "db_filename": "data/type2_burst/db_medium_opt.sqlite", "base_priority": 5, "ycsb_initial_record_count": 200000 },
+    { "id": "db_low_priority", "db_filename": "data/type2_burst/db_low_opt.sqlite", "base_priority": 3, "ycsb_initial_record_count": 50000 },
+    { "id": "db_bg_1", "db_filename": "data/type2_burst/db_bg_1_opt.sqlite", "base_priority": 1, "ycsb_initial_record_count": 10000 },
+    { "id": "db_bg_2", "db_filename": "data/type2_burst/db_bg_2_opt.sqlite", "base_priority": 1, "ycsb_initial_record_count": 10000 },
+    { "id": "db_bg_3", "db_filename": "data/type2_burst/db_bg_3_opt.sqlite", "base_priority": 1, "ycsb_initial_record_count": 10000 },
+    { "id": "db_bg_4", "db_filename": "data/type2_burst/db_bg_4_opt.sqlite", "base_priority": 1, "ycsb_initial_record_count": 10000 },
+    { "id": "db_bg_5", "db_filename": "data/type2_burst/db_bg_5_opt.sqlite", "base_priority": 1, "ycsb_initial_record_count": 10000 },
+    { "id": "db_bg_6", "db_filename": "data/type2_burst/db_bg_6_opt.sqlite", "base_priority": 1, "ycsb_initial_record_count": 10000 },
+    { "id": "db_bg_7", "db_filename": "data/type2_burst/db_bg_7_opt.sqlite", "base_priority": 1, "ycsb_initial_record_count": 10000 }
+  ],
+  "ycsb_general_config": {
+    "ycsb_row_size_bytes": 2048,
+    "hot_rate": 0.167,
+    "ycsb_workload_proportions": {
+      "read": 0.95,
+      "update": 0.05,
+      "insert": 0,
+      "scan": 0.0,
+      "read_modify_write": 0.0
+    }
+  },
+  "strategy_configurations": {
+    "B7_DYNAMIC_NEED": {
+      "active": true,
+      "strategy_name": "B7_DYNAMIC_NEED",
+      "description": "Dynamic need-based allocation with EMA lag exploitation",
+      "fixed_pool_percentage_of_total_ram": 0.1,
+      "adjustment_interval_seconds": 5,
+      "ema_alpha": 0.1,
+      "_comment": "关键：保持0.1，利用EMA滞后性产生过度反应"
+    }
+  }
+}

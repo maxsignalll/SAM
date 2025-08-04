@@ -1,0 +1,745 @@
+{
+    "general_experiment_setup": {
+        "experiment_name": "EMG_AS_Full_Campaign_Analysis",
+        "workload_mode": "dynamic",
+        "workload_type": "ycsb",
+        "random_seed": 42,
+        "output_directory": "results",
+        "log_level": "INFO",
+        "active_strategy": "S0_EMG_AS",
+        "reporting_interval_seconds": 4,
+        "measurement_interval_seconds": 4,
+        "data_collection_timeout_seconds": 1.0,
+        "save_logs": true,
+        "experimental_design": {
+            "type": "tps_controlled_comparison",
+            "description": "Comprehensive comparison of all strategies under a multi-stage dynamic workload designed to test adaptability, hotspot response, and resilience to cache-unfriendly patterns.",
+            "rationale": "Use single-threaded precise TPS control to isolate cache strategy effects from database lock competition. The workload phases are designed to specifically test the hypotheses in EXPERIMENT_PLAN.md.",
+            "controlled_variables": [
+                "total_cache_size",
+                "workload_pattern",
+                "data_size",
+                "num_databases",
+                "tps_per_database"
+            ]
+        }
+    },
+    "system_sqlite_config": {
+        "page_size_bytes": 4096,
+        "total_ram_for_cache_mb": 5
+    },
+    "cache_miss_simulation": {
+        "enabled": true,
+        "miss_penalty_ms": 100,
+        "compensation_method": "batch",
+        "compensation_interval_seconds": 8,
+        "description": "Simulate network delay for cache misses by batch compensation at tuning intervals"
+    },
+"dynamic_workload_phases": [
+    {
+  "name": "Phase1_Baseline",
+  "duration_seconds": 60,
+  "ycsb_config_overrides": {
+    "threadcount": 16,
+    "tps_distribution_per_db": {
+      "db_high_priority":   1,
+      "db_medium_priority":  1,
+      "db_low_priority":     1,
+      "db_bg_1": 1, "db_bg_2": 1, "db_bg_3": 1,
+      "db_bg_4": 1, "db_bg_5": 1, "db_bg_6": 1, "db_bg_7": 1
+    },
+    "access_pattern_per_db": {
+      "db_high_priority":   { "distribution": "uniform" },
+      "db_medium_priority": { "distribution": "uniform" },
+      "db_low_priority":    { "distribution": "uniform" },
+      "db_bg_1": { "distribution": "uniform" },
+      "db_bg_2": { "distribution": "uniform" },
+      "db_bg_3": { "distribution": "uniform" },
+      "db_bg_4": { "distribution": "uniform" },
+      "db_bg_5": { "distribution": "uniform" },
+      "db_bg_6": { "distribution": "uniform" },
+      "db_bg_7": { "distribution": "uniform" }
+    }
+  }
+},
+{
+  "name": "Phase2_HighPriorityHotspot",
+  "duration_seconds": 300,
+  "ycsb_config_overrides": {
+    "threadcount": 16,
+    "tps_distribution_per_db": {
+      "db_high_priority":   30,
+      "db_medium_priority":  1,
+      "db_low_priority":     1,
+      "db_bg_1": 1, "db_bg_2": 1, "db_bg_3": 1,
+      "db_bg_4": 1, "db_bg_5": 1, "db_bg_6": 1, "db_bg_7": 1
+    },
+    "access_pattern_per_db": {
+      "db_high_priority":   { "distribution": "zipfian", "zipf_alpha": 0.99 },
+      "db_medium_priority": { "distribution": "uniform" },
+      "db_low_priority":    { "distribution": "uniform" },
+      "db_bg_1": { "distribution": "uniform" },
+      "db_bg_2": { "distribution": "uniform" },
+      "db_bg_3": { "distribution": "uniform" },
+      "db_bg_4": { "distribution": "uniform" },
+      "db_bg_5": { "distribution": "uniform" },
+      "db_bg_6": { "distribution": "uniform" },
+      "db_bg_7": { "distribution": "uniform" }
+    }
+  }
+},
+{
+  "name": "Phase3_HotspotShiftToMedium",
+  "duration_seconds": 300,
+  "ycsb_config_overrides": {
+    "threadcount": 16,
+    "tps_distribution_per_db": {
+      "db_high_priority":    1,
+      "db_medium_priority":  30,
+      "db_low_priority":     1,
+      "db_bg_1": 1, "db_bg_2": 1, "db_bg_3": 1,
+      "db_bg_4": 1, "db_bg_5": 1, "db_bg_6": 1, "db_bg_7": 1
+    },
+    "access_pattern_per_db": {
+      "db_high_priority":   { "distribution": "uniform" },
+      "db_medium_priority": { "distribution": "zipfian", "zipf_alpha": 0.99 },
+      "db_low_priority":    { "distribution": "uniform" },
+      "db_bg_1": { "distribution": "uniform" },
+      "db_bg_2": { "distribution": "uniform" },
+      "db_bg_3": { "distribution": "uniform" },
+      "db_bg_4": { "distribution": "uniform" },
+      "db_bg_5": { "distribution": "uniform" },
+      "db_bg_6": { "distribution": "uniform" },
+      "db_bg_7": { "distribution": "uniform" }
+    }
+  }
+}
+],
+    "database_instances": [
+    {
+        "id": "db_high_priority",
+        "db_filename": "data/type1/db_high.sqlite",
+        "base_priority": 10,
+        "ycsb_initial_record_count": 300000,
+        "experimental_role": "primary_hotspot_subject",
+        "description": "High priority database, primary subject for hotspot tests."
+    },
+    {
+        "id": "db_medium_priority",
+        "db_filename": "data/type1/db_medium.sqlite",
+        "base_priority": 5,
+        "ycsb_initial_record_count": 200000,
+        "experimental_role": "secondary_hotspot_subject",
+        "description": "Medium priority database, subject for hotspot shift."
+    },
+    {
+        "id": "db_low_priority",
+        "db_filename": "data/type1/db_low.sqlite",
+        "base_priority": 1,
+        "ycsb_initial_record_count": 50000,
+        "experimental_role": "pollution_attack_subject",
+        "description": "Low priority database, subject for cache pollution attacks."
+    },
+    { "id": "db_bg_1", "db_filename": "data/type1/db_bg_1.sqlite", "base_priority": 1, "ycsb_initial_record_count": 10000, "experimental_role": "background_noise" },
+    { "id": "db_bg_2", "db_filename": "data/type1/db_bg_2.sqlite", "base_priority": 1, "ycsb_initial_record_count": 10000, "experimental_role": "background_noise" },
+    { "id": "db_bg_3", "db_filename": "data/type1/db_bg_3.sqlite", "base_priority": 1, "ycsb_initial_record_count": 10000, "experimental_role": "background_noise" },
+    { "id": "db_bg_4", "db_filename": "data/type1/db_bg_4.sqlite", "base_priority": 1, "ycsb_initial_record_count": 10000, "experimental_role": "background_noise" },
+    { "id": "db_bg_5", "db_filename": "data/type1/db_bg_5.sqlite", "base_priority": 1, "ycsb_initial_record_count": 10000, "experimental_role": "background_noise" },
+    { "id": "db_bg_6", "db_filename": "data/type1/db_bg_6.sqlite", "base_priority": 1, "ycsb_initial_record_count": 10000, "experimental_role": "background_noise" },
+    { "id": "db_bg_7", "db_filename": "data/type1/db_bg_7.sqlite", "base_priority": 1, "ycsb_initial_record_count": 10000, "experimental_role": "background_noise" }
+],
+    "ycsb_general_config": {
+        "ycsb_row_size_bytes": 2048,
+        "hot_rate": 0.167,
+        "ycsb_workload_proportions": {
+            "read": 0.85,
+            "update": 0.15,
+            "insert": 0,
+            "scan": 0.0,
+            "read_modify_write": 0.0
+        },
+        "scalability_experiment": {
+            "enabled": false,
+            "total_database_count": 20,
+            "background_db_prefix": "db_bg_",
+            "background_db_priority": 1,
+            "background_db_record_count": 10000,
+            "background_db_path": "data/",
+            "_comment": "Scalability experiment configuration - when enabled is true, automatically generate additional background database instances"
+        }
+    },
+    "strategy_configurations": {
+        "S0_EMG_AS": {
+            "active": true,
+            "strategy_name": "S0_EMG_AS",
+            "description": "S0 Strategy: Gradient descent based cache allocation + Kalman filter V-factor estimation + fixed alpha_t testing",
+            "fixed_pool_percentage_of_total_ram": 0.3,
+            "adjustment_interval_seconds": 8,
+            "noop_mode": false,
+            "strategy_config": {
+                "strategy": "S0_EMG_AS",
+                "strategy_hyperparameters": {
+                    "_comment_ema": "EMA system parameters",
+                    "alpha_slow": 0.1,
+                    "alpha_fast": 0.7,
+                    
+                    "_comment_h_factor": "H-factor parameters",
+                    "hr_base": 0.5,
+                    
+                    "_comment_v_factor": "V-factor parameters + Robust Kalman filter (delayed confirmation mechanism)",
+                    "kalman_process_noise": 0.01,
+                    "kalman_initial_uncertainty": 1.0,
+                    "kalman_confirmation_window": 3,
+                    "kalman_trend_threshold": 0.0001,
+                    "kalman_gradient_scale": 100.0,
+                    
+                    "_comment_alpha_t": "Dynamic weight parameters",
+                    "freeze_alpha_t": false,
+                    "initial_alpha_t": 0.5,
+                    "variance_ewma_lambda": 0.2,
+                    "alpha_smoothing": 0.4,
+                    
+                    "_comment_v_filter": "V-factor filtering mechanism parameters",
+                    "v_deadband": 0.00005,
+                    "hr_plateau": 0.9,
+                    "v_hysteresis_dn": 0.00015,
+                    "v_hysteresis_up": 0.00005,
+                    "k_dn": 3,
+                    "k_up": 1,
+                    
+                    "_comment_saturation": "Saturation detection parameters",
+                    "saturation_threshold": 0.9,
+                    "saturation_alpha_t": 0.85,
+                    
+                    "_comment_gradient": "Gradient descent parameters",
+                    "gradient_learning_rate": 0.35,
+                    "gradient_momentum": 0.7,
+                    "gradient_min_step_pages": 5,
+                    "gradient_max_step_pages": 100,
+                    "oscillation_threshold": 3,
+                    "oscillation_dampening": 0.5,
+                    "gradient_stability_threshold": 0.01,
+                    "gradient_stability_cycles": 3,
+                    
+                    "_comment_epoch": "Epoch management parameters",
+                    "epoch_champion_change_threshold": 3,
+                    "epoch_h_variance_threshold": 0.3,
+                    "epoch_h_sum_threshold": 0.2,
+                    "epoch_decay_rate": 0.05,
+                    "epoch_min_decay_factor": 0.1
+                }
+            }
+        },
+        "S1_Predictive": {
+            "active": true,
+            "strategy_name": "S1_Predictive",
+            "description": "S1 Strategy: RLS-FF online learning based predictive cache allocation + water-filling algorithm optimization",
+            "adjustment_interval_seconds": 8,
+            "strategy_config": {
+                "strategy": "S1_Predictive",
+                "strategy_hyperparameters": {
+                    "_comment_rls": "RLS-FF online learning parameters",
+                    "forgetting_factor": 0.98,
+                    "initial_covariance": 1000.0,
+                    "regularization": 1e-6,
+                    
+                    "_comment_model": "Prediction model parameters",
+                    "history_window_size": 20,
+                    "candidate_ratio": 0.5,
+                    "min_candidates": 2,
+                    
+                    "_comment_h_factor": "H-factor weight parameters",
+                    "w_tps": 0.4,
+                    "w_distress": 0.3,
+                    "w_priority": 0.3,
+                    
+                    "_comment_optimizer": "Water-filling algorithm parameters",
+                    "max_iterations": 100,
+                    "convergence_threshold": 0.0001,
+                    "min_allocation": 10,
+                    "allocation_step": 1,
+                    
+                    "_comment_control": "Control parameters",
+                    "tuning_interval": 5.0,
+                    "hysteresis_threshold": 0.05,
+                    "cooldown_cycles": 3,
+                    
+                    "enable_debug": false
+                }
+            }
+        },
+        "B1_StaticAverage": {
+            "active": true,
+            "strategy_name": "B1_StaticAverage",
+            "description": "Static average allocation baseline"
+        },
+        "B2_NoElasticFixedByPriority": {
+            "active": true,
+            "strategy_name": "B2_NoElasticFixedByPriority",
+            "description": "Fixed priority allocation only, no elastic pool"
+        },
+        "B3_NoFixedElasticByPriority": {
+            "active": true,
+            "strategy_name": "B3_NoFixedElasticByPriority",
+            "description": "Baseline B3 (Ablation): S0 strategy ablation experiment - remove fixed allocation mechanism, pure elastic pool",
+            "fixed_pool_percentage_of_total_ram": 0.3,
+            "adjustment_interval_seconds": 8,
+            "noop_mode": false,
+            "strategy_config": {
+                "strategy": "B3_NoFixedElasticByPriority",
+                "strategy_hyperparameters": {
+                    "_comment_ema": "EMA system parameters",
+                    "alpha_slow": 0.1,
+                    "alpha_fast": 0.7,
+                    
+                    "_comment_h_factor": "H-factor parameters",
+                    "hr_base": 0.5,
+                    
+                    "_comment_v_factor": "V-factor parameters + EMA smoothing",
+                    "v_factor_ema_alpha": 0.3,
+                    
+                    "_comment_alpha_t": "Dynamic weight parameters",
+                    "freeze_alpha_t": false,
+                    "initial_alpha_t": 0.5,
+                    
+                    "_comment_gradient": "Gradient descent parameters",
+                    "gradient_learning_rate": 0.1,
+                    "gradient_momentum": 0.7,
+                    "gradient_min_step_pages": 2,
+                    "gradient_max_step_pages": 50,
+                    "oscillation_threshold": 3,
+                    "oscillation_dampening": 0.5,
+                    "gradient_stability_threshold": 0.01,
+                    "gradient_stability_cycles": 3
+                }
+            }
+        },
+        "B4_IndividualOptimizedCache": {
+            "active": true,
+            "strategy_name": "B4_IndividualOptimizedCache",
+            "adjustment_interval_seconds": 8,
+            "description": "Baseline B4 (Selfish): DBs steal cache from each other based on miss rate.",
+            "strategy_config": {
+                "b4_config": {
+                   "page_transfer_increment": 100
+                }
+            }
+        },
+        "B5_SimulatedGlobalLru": {
+            "active": true,
+            "strategy_name": "B5_SimulatedGlobalLru",
+            "adjustment_interval_seconds": 8,
+            "description": "Simulates a true global LRU (not fully implemented)."
+        },
+        "B6_DataSizeProportionalStatic": {
+            "active": true,
+            "strategy_name": "B6_DataSizeProportionalStatic",
+            "description": "Static allocation, allocate total cache proportionally based on database file sizes"
+        },
+        "B7_DYNAMIC_NEED": {
+            "active": true,
+            "strategy_name": "B7_DYNAMIC_NEED",
+            "description": "Baseline B7: Dynamic need-based allocation (ops * miss_rate) with single-speed EMA smoothing.",
+            "fixed_pool_percentage_of_total_ram": 0.3,
+            "adjustment_interval_seconds": 8,
+            "ema_alpha": 0.1
+        },
+        "B8_EFFICIENCY_ONLY": {
+            "active": true,
+            "strategy_name": "B8_EFFICIENCY_ONLY",
+            "description": "Baseline B8 (Ablation): S0 strategy ablation experiment - remove vertical factor, only horizontal factor (H)",
+            "fixed_pool_percentage_of_total_ram": 0.3,
+            "adjustment_interval_seconds": 8,
+            "noop_mode": false,
+            "strategy_config": {
+                "strategy": "B8_EFFICIENCY_ONLY",
+                "strategy_hyperparameters": {
+                    "alpha_slow": 0.1,
+                    "alpha_fast": 0.7,
+                    "smart_cooldown_enabled": true,
+                    "smart_cooldown_turns": 3,
+                    "strategic_change_threshold": 2.0,
+                    "reality_check_noise_margin": -0.5,
+                    "min_allocation_change_pct": 0.2,
+                    "hr_base": 0.5,
+                    "hr_norm_decay_factor": 0.99,
+                    "hr_norm_update_threshold": 0.02,
+                    "hr_norm_p95_window_size": 10,
+                    "hr_norm_max_stagnant_cycles": 15,
+                    "eta0": 1.0,
+                    "eta_floor": 0.04,
+                    "cv_sigmoid_center": 1.5,
+                    "cv_sigmoid_slope": 2.0,
+                    "T_max_epoch": 500,
+                    "champion_consecutive_threshold": 3,
+                    "freeze_alpha_t": false,
+                    "initial_alpha_t": 0.5,
+                    
+                    "_comment_v_factor_system": "New V-factor experiment system configuration",
+                    "v_factor_enabled": true,
+                    "v_factor_min_change_pct": 0.03,
+                    "v_factor_max_experiments": 5,
+                    "v_factor_max_experiment_age": 180,
+                    "v_factor_max_history_size": 30,
+                    "v_factor_quality_threshold": 0.4,
+                    "v_factor_result_cache_size": 15,
+                    "v_factor_cleanup_interval": 300,
+                    
+                    "_comment_v_factor_calculation": "V-factor calculation configuration",
+                    "v_factor_max_reasonable_value": 0.02,
+                    "v_factor_confidence_interval_max_width": 0.01,
+                    "v_factor_significance_level": 0.2,
+                    
+                    "_comment_logging": "Logging control",
+                    "verbose_logging": false,
+                    
+                    "_comment_audit_system": "V-factor audit system parameters",
+                    "audit_enabled": true,
+                    "audit_observation_cycles": 3,
+                    "audit_confidence_weight": 1.0,
+                    "audit_min_consistency": 0.6,
+                    "audit_max_std_dev": 0.01,
+                    
+                    "_comment_v_normalization": "V-factor normalization parameters",
+                    "v_factor_scaling_factor": 1000.0,
+                    
+                    "_comment_knee_detection": "Knee detection core member identification parameters",
+                    "knee_sensitivity": 1.0,
+                    "min_knee_gain": 0.1,
+                    "min_core_members": 1,
+                    "max_core_members_ratio": 0.5,
+                    
+                    "_comment_gradient_mode": "Incremental adjustment allocation system parameters (original dual-gradient changed to incremental adjustment)",
+                    "gradient_mode": true,
+                    "gradient_base_learning_rate": 0.1,
+                    "gradient_momentum": 0.7,
+                    "gradient_max_step_pages": 200,
+                    "gradient_lr_decay_rate": 0.05,
+                    "gradient_min_learning_rate": 0.02,
+                    
+                    "_comment_incremental_adjustment": "Incremental adjustment mechanism parameters",
+                    "incremental_base_step_size": 0.1,
+                    "incremental_momentum_beta": 0.5,
+                    "incremental_min_step_size": 0.02,
+                    "incremental_max_step_size": 0.8,
+                    "incremental_major_change_pct": 0.25,
+                    "incremental_conservative_step_size": 0.15,
+                    "incremental_aggressive_step_size": 0.7,
+                    "incremental_verified_hotspot_step_size": 0.95
+                }
+            }
+        },
+        "B9_EMG_AS_SINGLE_EMA": {
+            "active": true,
+            "strategy_name": "B9_EMG_AS_SINGLE_EMA",
+            "description": "Baseline B9 (Ablation): S0 strategy ablation experiment - fully use Fast-EMA, test fast response vs slow stability",
+            "fixed_pool_percentage_of_total_ram": 0.3,
+            "adjustment_interval_seconds": 8,
+            "noop_mode": false,
+            "strategy_config": {
+                "strategy": "B9_EMG_AS_SINGLE_EMA",
+                "strategy_hyperparameters": {
+                    "alpha_slow": 0.1,
+                    "alpha_fast": 0.7,
+                    "smart_cooldown_enabled": true,
+                    "smart_cooldown_turns": 3,
+                    "strategic_change_threshold": 2.0,
+                    "reality_check_noise_margin": -0.5,
+                    "min_allocation_change_pct": 0.2,
+                    "hr_base": 0.5,
+                    "hr_norm_decay_factor": 0.99,
+                    "hr_norm_update_threshold": 0.02,
+                    "hr_norm_p95_window_size": 10,
+                    "hr_norm_max_stagnant_cycles": 15,
+                    "eta0": 1.0,
+                    "eta_floor": 0.04,
+                    "cv_sigmoid_center": 1.5,
+                    "cv_sigmoid_slope": 2.0,
+                    "T_max_epoch": 500,
+                    "champion_consecutive_threshold": 3,
+                    "freeze_alpha_t": false,
+                    "initial_alpha_t": 0.5,
+                    
+                    "_comment_v_factor_system": "New V-factor experiment system configuration",
+                    "v_factor_enabled": true,
+                    "v_factor_min_change_pct": 0.03,
+                    "v_factor_max_experiments": 5,
+                    "v_factor_max_experiment_age": 180,
+                    "v_factor_max_history_size": 30,
+                    "v_factor_quality_threshold": 0.4,
+                    "v_factor_result_cache_size": 15,
+                    "v_factor_cleanup_interval": 300,
+                    
+                    "_comment_v_factor_calculation": "V-factor calculation configuration",
+                    "v_factor_max_reasonable_value": 0.02,
+                    "v_factor_confidence_interval_max_width": 0.01,
+                    "v_factor_significance_level": 0.2,
+                    
+                    "_comment_logging": "Logging control",
+                    "verbose_logging": false,
+                    
+                    "_comment_audit_system": "V-factor audit system parameters",
+                    "audit_enabled": true,
+                    "audit_observation_cycles": 3,
+                    "audit_confidence_weight": 1.0,
+                    "audit_min_consistency": 0.6,
+                    "audit_max_std_dev": 0.01,
+                    
+                    "_comment_v_normalization": "V-factor normalization parameters",
+                    "v_factor_scaling_factor": 1000.0,
+                    
+                    "_comment_knee_detection": "Knee detection core member identification parameters",
+                    "knee_sensitivity": 1.0,
+                    "min_knee_gain": 0.1,
+                    "min_core_members": 1,
+                    "max_core_members_ratio": 0.5,
+                    
+                    "_comment_gradient_mode": "Incremental adjustment allocation system parameters (original dual-gradient changed to incremental adjustment)",
+                    "gradient_mode": true,
+                    "gradient_base_learning_rate": 0.1,
+                    "gradient_momentum": 0.7,
+                    "gradient_max_step_pages": 200,
+                    "gradient_lr_decay_rate": 0.05,
+                    "gradient_min_learning_rate": 0.02,
+                    
+                    "_comment_incremental_adjustment": "Incremental adjustment mechanism parameters",
+                    "incremental_base_step_size": 0.1,
+                    "incremental_momentum_beta": 0.5,
+                    "incremental_min_step_size": 0.02,
+                    "incremental_max_step_size": 0.8,
+                    "incremental_major_change_pct": 0.25,
+                    "incremental_conservative_step_size": 0.15,
+                    "incremental_aggressive_step_size": 0.7,
+                    "incremental_verified_hotspot_step_size": 0.95
+                }
+            }
+        },
+        "B10_Pure_V_Factor": {
+            "active": true,
+            "strategy_name": "B10_Pure_V_Factor",
+            "description": "Baseline B10 (Ablation): S0 strategy ablation experiment - pure V-factor strategy, showing limitations of pure marginal gain",
+            "fixed_pool_percentage_of_total_ram": 0.3,
+            "adjustment_interval_seconds": 8,
+            "noop_mode": false,
+            "strategy_config": {
+                "strategy": "B10_Pure_V_Factor",
+                "strategy_hyperparameters": {
+                    "alpha_slow": 0.1,
+                    "alpha_fast": 0.7,
+                    "smart_cooldown_enabled": true,
+                    "smart_cooldown_turns": 3,
+                    "strategic_change_threshold": 2.0,
+                    "reality_check_noise_margin": -0.5,
+                    "min_allocation_change_pct": 0.2,
+                    "hr_base": 0.5,
+                    "hr_norm_decay_factor": 0.99,
+                    "hr_norm_update_threshold": 0.02,
+                    "hr_norm_p95_window_size": 10,
+                    "hr_norm_max_stagnant_cycles": 15,
+                    "eta0": 1.0,
+                    "eta_floor": 0.04,
+                    "cv_sigmoid_center": 1.5,
+                    "cv_sigmoid_slope": 2.0,
+                    "T_max_epoch": 500,
+                    "champion_consecutive_threshold": 3,
+                    "freeze_alpha_t": false,
+                    "initial_alpha_t": 0.5,
+                    
+                    "_comment_v_factor_system": "New V-factor experiment system configuration",
+                    "v_factor_enabled": true,
+                    "v_factor_min_change_pct": 0.03,
+                    "v_factor_max_experiments": 5,
+                    "v_factor_max_experiment_age": 180,
+                    "v_factor_max_history_size": 30,
+                    "v_factor_quality_threshold": 0.4,
+                    "v_factor_result_cache_size": 15,
+                    "v_factor_cleanup_interval": 300,
+                    
+                    "_comment_v_factor_calculation": "V-factor calculation configuration",
+                    "v_factor_max_reasonable_value": 0.02,
+                    "v_factor_confidence_interval_max_width": 0.01,
+                    "v_factor_significance_level": 0.2,
+                    
+                    "_comment_logging": "Logging control",
+                    "verbose_logging": false,
+                    
+                    "_comment_audit_system": "V-factor audit system parameters",
+                    "audit_enabled": true,
+                    "audit_observation_cycles": 3,
+                    "audit_confidence_weight": 1.0,
+                    "audit_min_consistency": 0.6,
+                    "audit_max_std_dev": 0.01,
+                    
+                    "_comment_v_normalization": "V-factor normalization parameters",
+                    "v_factor_scaling_factor": 1000.0,
+                    
+                    "_comment_knee_detection": "Knee detection core member identification parameters",
+                    "knee_sensitivity": 1.0,
+                    "min_knee_gain": 0.1,
+                    "min_core_members": 1,
+                    "max_core_members_ratio": 0.5,
+                    
+                    "_comment_gradient_mode": "Incremental adjustment allocation system parameters (original dual-gradient changed to incremental adjustment)",
+                    "gradient_mode": true,
+                    "gradient_base_learning_rate": 0.1,
+                    "gradient_momentum": 0.7,
+                    "gradient_max_step_pages": 200,
+                    "gradient_lr_decay_rate": 0.05,
+                    "gradient_min_learning_rate": 0.02,
+                    
+                    "_comment_incremental_adjustment": "Incremental adjustment mechanism parameters",
+                    "incremental_base_step_size": 0.1,
+                    "incremental_momentum_beta": 0.5,
+                    "incremental_min_step_size": 0.02,
+                    "incremental_max_step_size": 0.8,
+                    "incremental_major_change_pct": 0.25,
+                    "incremental_conservative_step_size": 0.15,
+                    "incremental_aggressive_step_size": 0.7,
+                    "incremental_verified_hotspot_step_size": 0.95
+                }
+            }
+        },
+        "B11_ML_Driven": {
+            "active": true,
+            "strategy_name": "B11_ML_Driven",
+            "description": "ML-driven strategy: Enhanced lightweight learning-based allocation with adaptive actions and smoothing.",
+            "fixed_pool_percentage_of_total_ram": 0.3,
+            "adjustment_interval_seconds": 16,
+            "strategy_config": {
+                "strategy": "B11_ML_Driven",
+                "strategy_hyperparameters": {
+                    "training_buffer_size": 100,
+                    "prediction_deltas": [-200, -100, 100, 200],
+                    "min_allocation_change_pct": 0.1,
+                    "cold_start_ops_threshold": 20,
+                    "action_scale_ratio": 0.1,
+                    "smoothing_factor": 0.3,
+                    "min_action_size": 50,
+                    "min_training_samples": 10
+                }
+            }
+        },
+        "B12_MT_LRU_Inspired": {
+            "active": true,
+            "strategy_name": "B12_MT_LRU_Inspired",
+            "description": "MT-LRU-like strategy: SLA-driven allocation prioritizing instances that fail to meet hit rate targets.",
+            "fixed_pool_percentage_of_total_ram": 0.3,
+            "adjustment_interval_seconds": 8,
+            "strategy_config": {
+                "strategy": "B12_MT_LRU_Inspired",
+                "strategy_hyperparameters": {
+                    "sla_huge_weight": 1000000.0,
+                    "target_hit_rates": {
+                        "db_high_priority": 0.664,
+                        "db_medium_priority": 0.597,
+                        "db_low_priority": 0
+                    },
+                    "min_allocation_change_pct": 0.1
+                }
+            }
+        },
+        "B12_SLA_Firefighter": {
+            "active": true,
+            "strategy_name": "B12_SLA_Firefighter",
+            "description": "MT-LRU-like strategy: SLA-driven allocation prioritizing instances that fail to meet hit rate targets. (Alias for B12_MT_LRU_Inspired)",
+            "fixed_pool_percentage_of_total_ram": 0.3,
+            "adjustment_interval_seconds": 8,
+            "strategy_config": {
+                "strategy": "B12_SLA_Firefighter",
+                "strategy_hyperparameters": {
+                    "sla_huge_weight": 1000000.0,
+                    "target_hit_rates": {
+                        "db_high_priority": 0.664,
+                        "db_medium_priority": 0.597,
+                        "db_low_priority": 0
+                    },
+                    "min_allocation_change_pct": 0.1
+                }
+            }
+        },
+        "B13_Active_Sampling": {
+            "active": true,
+            "strategy_name": "B13_Active_Sampling",
+            "description": "Tiered UCP Strategy: SLA-aware baseline with pure UCP (guaranteed pool + elastic pool running pure UCP)",
+            "fixed_pool_percentage_of_total_ram": 0.0,
+            "adjustment_interval_seconds": 5,
+            "noop_mode": false,
+            "strategy_config": {
+                "strategy": "B13_Active_Sampling",
+                "strategy_hyperparameters": {
+                    "ema_alpha": 0.3,
+                    "measurement_window": 3
+                }
+            }
+        },
+        "B14_Smooth_OPT": {
+            "active": true,
+            "strategy_name": "B14_Smooth_OPT",
+            "description": "Smooth-OPT Strategy: Oracle with gradual adjustment constraints representing theoretical upper bound",
+            "fixed_pool_percentage_of_total_ram": 0.0,
+            "adjustment_interval_seconds": 5,
+            "noop_mode": false,
+            "strategy_config": {
+                "strategy": "B14_Smooth_OPT",
+                "strategy_hyperparameters": {
+                    "require_real_probe": true,
+                    "use_simulated_if_missing": false,
+                    "delta_alloc_limit": 50,
+                    "min_pages_per_db": 10,
+                    "optimal_allocations_file": "results/b14_optimal_allocations.json"
+                }
+            }
+        },
+        "S0_PURE_CORE": {
+            "active": true,
+            "strategy_name": "S0_PURE_CORE",
+            "description": "S0 Pure Core: Pure version fully compliant with theoretical requirements - single-speed EMA + fixed weight + proportional allocation",
+            "fixed_pool_percentage_of_total_ram": 0.3,
+            "adjustment_interval_seconds": 8,
+            "noop_mode": false,
+            "strategy_config": {
+                "strategy": "S0_PURE_CORE",
+                "strategy_hyperparameters": {
+                    "_comment": "Pure Core parameters - fixed values, no engineering optimization",
+                    "pure_core_v_scale": 1000.0,
+                    "_comment2": "All other parameters are hardcoded: ema_alpha=0.3, alpha=0.5, min_allocation_change=5"
+                }
+            }
+        },
+        "S0_LAZY_ACTIVE_SET": {
+            "active": true,
+            "strategy_name": "S0_LAZY_ACTIVE_SET", 
+            "description": "S0 Lazy Active Set: S0 strategy based on active set mechanism, achieving O(N) scalability and adaptive optimization",
+            "fixed_pool_percentage_of_total_ram": 0.3,
+            "adjustment_interval_seconds": 8,
+            "noop_mode": false,
+            "strategy_config": {
+                "strategy": "S0_LAZY_ACTIVE_SET",
+                "strategy_hyperparameters": {
+                    "_comment": "Active set related parameters",
+                    "positive_v_threshold": 0.001,
+                    "hr_ratio_strict": 0.9,
+                    "base_alpha": 0.5,
+                    "saturation_alpha": 0.8,
+                    "k_max": 20,
+                    "cv_threshold": 0.1,
+                    "min_demand_supply_ratio": 0.8,
+                    "convergence_threshold": 0.02,
+                    "stagnation_cycles": 5,
+                    "max_active_set_lifetime": 10,
+                    
+                    "_comment2": "Inherit other parameters from simplified S0",
+                    "alpha_slow": 0.1,
+                    "alpha_fast": 0.7,
+                    "hr_base": 0.5,
+                    "hr_norm_decay_factor": 0.99,
+                    "hr_norm_update_threshold": 0.02,
+                    "hr_norm_p95_window_size": 10,
+                    "hr_norm_max_stagnant_cycles": 15,
+                    "freeze_alpha_t": false,
+                    "initial_alpha_t": 0.5
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,793 @@
+{
+    "general_experiment_setup": {
+        "experiment_name": "EMG_AS_Full_Campaign_Analysis",
+        "workload_mode": "dynamic",
+        "workload_type": "ycsb",
+        "random_seed": 42,
+        "output_directory": "results",
+        "log_level": "INFO",
+        "active_strategy": "S0_EMG_AS",
+        "reporting_interval_seconds": 4,
+        "measurement_interval_seconds": 4,
+        "data_collection_timeout_seconds": 1.0,
+        "save_logs": true,
+        "experimental_design": {
+            "type": "tps_controlled_comparison",
+            "description": "Comprehensive comparison of all strategies under a multi-stage dynamic workload designed to test adaptability, hotspot response, and resilience to cache-unfriendly patterns.",
+            "rationale": "Use single-threaded precise TPS control to isolate cache strategy effects from database lock competition. The workload phases are designed to specifically test the hypotheses in EXPERIMENT_PLAN.md.",
+            "controlled_variables": [
+                "total_cache_size",
+                "workload_pattern",
+                "data_size",
+                "num_databases",
+                "tps_per_database"
+            ]
+        }
+    },
+    "system_sqlite_config": {
+        "page_size_bytes": 4096,
+        "total_ram_for_cache_mb": 2
+    },
+"dynamic_workload_phases": [
+    {
+  "name": "Phase1_Baseline",
+  "duration_seconds": 60,
+  "ycsb_config_overrides": {
+    "threadcount": 16,
+    "tps_distribution_per_db": {
+      "db_high_priority":   50,
+      "db_medium_priority":  25,
+      "db_low_priority":     15,
+      "db_bg_1": 3, "db_bg_2": 3, "db_bg_3": 3,
+      "db_bg_4": 3, "db_bg_5": 3, "db_bg_6": 3, "db_bg_7": 3
+    },
+    "access_pattern_per_db": {
+      "db_high_priority": { 
+        "distribution": "zipfian",
+        "zipf_alpha": 2.0,
+        "_comment": "VIP客户 - 极度依赖缓存的热点负载"
+      },
+      "db_medium_priority": { 
+        "distribution": "uniform",
+        "_comment": "潜在攻击者 - 暂时正常运行"
+      },
+      "db_low_priority": { 
+        "distribution": "uniform"
+      },
+      "db_bg_1": { "distribution": "zipfian", "zipf_alpha": 1.2 },
+      "db_bg_2": { "distribution": "zipfian", "zipf_alpha": 1.2 },
+      "db_bg_3": { "distribution": "zipfian", "zipf_alpha": 1.2 },
+      "db_bg_4": { "distribution": "uniform" },
+      "db_bg_5": { "distribution": "uniform" },
+      "db_bg_6": { "distribution": "uniform" },
+      "db_bg_7": { "distribution": "uniform" }
+    }
+  }
+},
+{
+  "name": "Phase2A_Dual_Combat_Start",
+  "duration_seconds": 60,
+  "ycsb_config_overrides": {
+    "threadcount": 16,
+    "tps_distribution_per_db": {
+      "db_high_priority":   50,
+      "db_medium_priority":  30,
+      "db_low_priority":     20,
+      "db_bg_1": 3, "db_bg_2": 3, "db_bg_3": 3,
+      "db_bg_4": 3, "db_bg_5": 3, "db_bg_6": 3, "db_bg_7": 3
+    },
+    "access_pattern_per_db": {
+      "db_high_priority": { 
+        "distribution": "zipfian",
+        "zipf_alpha": 2.0,
+        "_comment": "VIP客户继续 - 需要稳定的缓存保障"
+      },
+      "db_medium_priority": { 
+        "distribution": "uniform",
+        "scanproportion": 0.7,
+        "readproportion": 0.3,
+        "_comment": "攻击者开始 - 70%扫描攻击"
+      },
+      "db_low_priority": { 
+        "distribution": "uniform",
+        "scanproportion": 0.6,
+        "readproportion": 0.4,
+        "_comment": "第二攻击者 - 60%扫描"
+      },
+      "db_bg_1": { "distribution": "zipfian", "zipf_alpha": 1.2 },
+      "db_bg_2": { "distribution": "zipfian", "zipf_alpha": 1.2 },
+      "db_bg_3": { "distribution": "zipfian", "zipf_alpha": 1.2 },
+      "db_bg_4": { "distribution": "uniform" },
+      "db_bg_5": { "distribution": "uniform" },
+      "db_bg_6": { "distribution": "uniform" },
+      "db_bg_7": { "distribution": "uniform" }
+    }
+  }
+},
+{
+  "name": "Phase2B_Intensified_Attack",
+  "duration_seconds": 30,
+  "ycsb_config_overrides": {
+    "threadcount": 16,
+    "tps_distribution_per_db": {
+      "db_high_priority":   50,
+      "db_medium_priority":  40,
+      "db_low_priority":     30,
+      "db_bg_1": 3, "db_bg_2": 3, "db_bg_3": 3,
+      "db_bg_4": 3, "db_bg_5": 3, "db_bg_6": 3, "db_bg_7": 3
+    },
+    "access_pattern_per_db": {
+      "db_high_priority": { 
+        "distribution": "zipfian",
+        "zipf_alpha": 2.0,
+        "_comment": "VIP客户不变 - 观察是否被抢夺缓存"
+      },
+      "db_medium_priority": { 
+        "distribution": "uniform",
+        "scanproportion": 0.9,
+        "readproportion": 0.1,
+        "_comment": "攻击加剧 - 90%扫描"
+      },
+      "db_low_priority": { 
+        "distribution": "uniform",
+        "scanproportion": 0.8,
+        "readproportion": 0.2,
+        "_comment": "协同攻击 - 80%扫描"
+      },
+      "db_bg_1": { "distribution": "zipfian", "zipf_alpha": 1.2 },
+      "db_bg_2": { "distribution": "zipfian", "zipf_alpha": 1.2 },
+      "db_bg_3": { "distribution": "zipfian", "zipf_alpha": 1.2 },
+      "db_bg_4": { "distribution": "uniform" },
+      "db_bg_5": { "distribution": "uniform" },
+      "db_bg_6": { "distribution": "uniform" },
+      "db_bg_7": { "distribution": "uniform" }
+    }
+  }
+},
+{
+  "name": "Phase2C_Attack_Pause",
+  "duration_seconds": 60,
+  "ycsb_config_overrides": {
+    "threadcount": 16,
+    "tps_distribution_per_db": {
+      "db_high_priority":   50,
+      "db_medium_priority":  25,
+      "db_low_priority":     15,
+      "db_bg_1": 3, "db_bg_2": 3, "db_bg_3": 3,
+      "db_bg_4": 3, "db_bg_5": 3, "db_bg_6": 3, "db_bg_7": 3
+    },
+    "access_pattern_per_db": {
+      "db_high_priority": { 
+        "distribution": "zipfian",
+        "zipf_alpha": 2.0,
+        "_comment": "VIP客户 - 观察恢复速度"
+      },
+      "db_medium_priority": { 
+        "distribution": "uniform",
+        "_comment": "攻击者暂停 - 恢复正常"
+      },
+      "db_low_priority": { 
+        "distribution": "uniform",
+        "_comment": "攻击者暂停"
+      },
+      "db_bg_1": { "distribution": "zipfian", "zipf_alpha": 1.2 },
+      "db_bg_2": { "distribution": "zipfian", "zipf_alpha": 1.2 },
+      "db_bg_3": { "distribution": "zipfian", "zipf_alpha": 1.2 },
+      "db_bg_4": { "distribution": "uniform" },
+      "db_bg_5": { "distribution": "uniform" },
+      "db_bg_6": { "distribution": "uniform" },
+      "db_bg_7": { "distribution": "uniform" }
+    }
+  }
+},
+{
+  "name": "Phase2D_Second_Wave",
+  "duration_seconds": 30,
+  "ycsb_config_overrides": {
+    "threadcount": 16,
+    "tps_distribution_per_db": {
+      "db_high_priority":   50,
+      "db_medium_priority":  35,
+      "db_low_priority":     25,
+      "db_bg_1": 5, "db_bg_2": 5, "db_bg_3": 5,
+      "db_bg_4": 5, "db_bg_5": 5, "db_bg_6": 5, "db_bg_7": 5
+    },
+    "access_pattern_per_db": {
+      "db_high_priority": { 
+        "distribution": "zipfian",
+        "zipf_alpha": 2.0,
+        "_comment": "VIP客户 - 第二波攻击下的表现"
+      },
+      "db_medium_priority": { 
+        "distribution": "zipfian",
+        "zipf_alpha": 0.5,
+        "_comment": "新型攻击 - 极度倾斜访问模式(模拟最新数据访问)"
+      },
+      "db_low_priority": { 
+        "distribution": "uniform",
+        "scanproportion": 0.95,
+        "readproportion": 0.05,
+        "_comment": "极限扫描 - 95%"
+      },
+      "db_bg_1": { "distribution": "uniform", "scanproportion": 0.5, "readproportion": 0.5 },
+      "db_bg_2": { "distribution": "uniform", "scanproportion": 0.5, "readproportion": 0.5 },
+      "db_bg_3": { "distribution": "uniform", "scanproportion": 0.5, "readproportion": 0.5 },
+      "db_bg_4": { "distribution": "zipfian", "zipf_alpha": 1.0 },
+      "db_bg_5": { "distribution": "zipfian", "zipf_alpha": 1.0 },
+      "db_bg_6": { "distribution": "zipfian", "zipf_alpha": 1.0 },
+      "db_bg_7": { "distribution": "zipfian", "zipf_alpha": 1.0 }
+    }
+  }
+},
+{
+  "name": "Phase3_Final_Assessment",
+  "duration_seconds": 120,
+  "ycsb_config_overrides": {
+    "threadcount": 16,
+    "tps_distribution_per_db": {
+      "db_high_priority":   50,
+      "db_medium_priority":  25,
+      "db_low_priority":     15,
+      "db_bg_1": 3, "db_bg_2": 3, "db_bg_3": 3,
+      "db_bg_4": 3, "db_bg_5": 3, "db_bg_6": 3, "db_bg_7": 3
+    },
+    "access_pattern_per_db": {
+      "db_high_priority": { 
+        "distribution": "zipfian",
+        "zipf_alpha": 2.0,
+        "_comment": "VIP客户 - 最终性能评估"
+      },
+      "db_medium_priority": { 
+        "distribution": "zipfian",
+        "zipf_alpha": 1.5,
+        "_comment": "恢复正常业务"
+      },
+      "db_low_priority": { 
+        "distribution": "zipfian",
+        "zipf_alpha": 1.2
+      },
+      "db_bg_1": { "distribution": "zipfian", "zipf_alpha": 1.2 },
+      "db_bg_2": { "distribution": "zipfian", "zipf_alpha": 1.2 },
+      "db_bg_3": { "distribution": "zipfian", "zipf_alpha": 1.2 },
+      "db_bg_4": { "distribution": "zipfian", "zipf_alpha": 1.0 },
+      "db_bg_5": { "distribution": "zipfian", "zipf_alpha": 1.0 },
+      "db_bg_6": { "distribution": "zipfian", "zipf_alpha": 1.0 },
+      "db_bg_7": { "distribution": "zipfian", "zipf_alpha": 1.0 }
+    }
+  }
+}
+],
+    "database_instances": [
+    {
+        "id": "db_high_priority",
+        "db_filename": "data/type2/db_high_combat.sqlite",
+        "base_priority": 10,
+        "ycsb_initial_record_count": 300000,
+        "experimental_role": "primary_hotspot_subject",
+        "description": "High priority database, primary subject for hotspot tests."
+    },
+    {
+        "id": "db_medium_priority",
+        "db_filename": "data/type2/db_medium_combat.sqlite",
+        "base_priority": 5,
+        "ycsb_initial_record_count": 200000,
+        "experimental_role": "secondary_hotspot_subject",
+        "description": "Medium priority database, subject for hotspot shift."
+    },
+    {
+        "id": "db_low_priority",
+        "db_filename": "data/type2/db_low_combat.sqlite",
+        "base_priority": 1,
+        "ycsb_initial_record_count": 50000,
+        "experimental_role": "pollution_attack_subject",
+        "description": "Low priority database, subject for cache pollution attacks."
+    },
+    { "id": "db_bg_1", "db_filename": "data/type2/db_bg_1_combat.sqlite", "base_priority": 1, "ycsb_initial_record_count": 10000, "experimental_role": "background_noise" },
+    { "id": "db_bg_2", "db_filename": "data/type2/db_bg_2_combat.sqlite", "base_priority": 1, "ycsb_initial_record_count": 10000, "experimental_role": "background_noise" },
+    { "id": "db_bg_3", "db_filename": "data/type2/db_bg_3_combat.sqlite", "base_priority": 1, "ycsb_initial_record_count": 10000, "experimental_role": "background_noise" },
+    { "id": "db_bg_4", "db_filename": "data/type2/db_bg_4_combat.sqlite", "base_priority": 1, "ycsb_initial_record_count": 10000, "experimental_role": "background_noise" },
+    { "id": "db_bg_5", "db_filename": "data/type2/db_bg_5_combat.sqlite", "base_priority": 1, "ycsb_initial_record_count": 10000, "experimental_role": "background_noise" },
+    { "id": "db_bg_6", "db_filename": "data/type2/db_bg_6_combat.sqlite", "base_priority": 1, "ycsb_initial_record_count": 10000, "experimental_role": "background_noise" },
+    { "id": "db_bg_7", "db_filename": "data/type2/db_bg_7_combat.sqlite", "base_priority": 1, "ycsb_initial_record_count": 10000, "experimental_role": "background_noise" }
+],
+    "ycsb_general_config": {
+        "ycsb_row_size_bytes": 2048,
+        "hot_rate": 0.167,
+        "ycsb_workload_proportions": {
+            "read": 0.85,
+            "update": 0.15,
+            "insert": 0,
+            "scan": 0.0,
+            "read_modify_write": 0.0
+        },
+        "_comment": "注意：当前实现不支持per-database的workload proportions。access_pattern_per_db中的scanproportion设置会被忽略。要实现扫描攻击，需要修改代码或使用全局scan设置（但会影响所有数据库）。"
+    },
+    "strategy_configurations": {
+        "S0_EMG_AS": {
+            "active": true,
+            "strategy_name": "S0_EMG_AS",
+            "description": "S0策略: 基于梯度下降的缓存分配 + 卡尔曼滤波V因子估计 + 固定alpha_t测试",
+            "fixed_pool_percentage_of_total_ram": 0.3,
+            "adjustment_interval_seconds": 8,
+            "noop_mode": false,
+            "strategy_config": {
+                "strategy": "S0_EMG_AS",
+                "strategy_hyperparameters": {
+                    "_comment_ema": "EMA系统参数",
+                    "alpha_slow": 0.1,
+                    "alpha_fast": 0.7,
+                    
+                    "_comment_h_factor": "H因子参数",
+                    "hr_base": 0.5,
+                    
+                    "_comment_v_factor": "V因子参数 + 鲁棒卡尔曼滤波器（延迟确认机制）",
+                    "kalman_process_noise": 0.01,
+                    "kalman_initial_uncertainty": 1.0,
+                    "kalman_confirmation_window": 3,
+                    "kalman_trend_threshold": 0.0001,
+                    "kalman_gradient_scale": 100.0,
+                    
+                    "_comment_alpha_t": "动态权重参数",
+                    "freeze_alpha_t": false,
+                    "initial_alpha_t": 0.5,
+                    "variance_ewma_lambda": 0.2,
+                    "alpha_smoothing": 0.4,
+                    
+                    "_comment_v_filter": "V因子过滤机制参数",
+                    "v_deadband": 0.00005,
+                    "hr_plateau": 0.9,
+                    "v_hysteresis_dn": 0.00015,
+                    "v_hysteresis_up": 0.00005,
+                    "k_dn": 3,
+                    "k_up": 1,
+                    
+                    "_comment_saturation": "饱和检测参数",
+                    "saturation_threshold": 0.9,
+                    "saturation_alpha_t": 0.85,
+                    
+                    "_comment_gradient": "梯度下降参数",
+                    "gradient_learning_rate": 0.7,
+                    "gradient_momentum": 0.3,
+                    "gradient_min_step_pages": 2,
+                    "gradient_max_step_pages": 200,
+                    "oscillation_threshold": 3,
+                    "oscillation_dampening": 0.5,
+                    "gradient_stability_threshold": 0.01,
+                    "gradient_stability_cycles": 3,
+                    
+                    "_comment_epoch": "纪元管理参数",
+                    "epoch_champion_change_threshold": 3,
+                    "epoch_h_variance_threshold": 0.3,
+                    "epoch_h_sum_threshold": 0.2,
+                    "epoch_decay_rate": 0.05,
+                    "epoch_min_decay_factor": 0.1
+                }
+            }
+        },
+        "B1_StaticAverage": {
+            "active": true,
+            "strategy_name": "B1_StaticAverage",
+            "description": "静态平均分配基线"
+        },
+        "B2_NoElasticFixedByPriority": {
+            "active": true,
+            "strategy_name": "B2_NoElasticFixedByPriority",
+            "description": "仅固定优先级分配，无弹性池"
+        },
+        "B3_NoFixedElasticByPriority": {
+            "active": true,
+            "strategy_name": "B3_NoFixedElasticByPriority",
+            "description": "Baseline B3 (Ablation): S0策略的消融实验 - 移除固定分配机制，纯弹性池",
+            "fixed_pool_percentage_of_total_ram": 0.3,
+            "adjustment_interval_seconds": 8,
+            "noop_mode": false,
+            "strategy_config": {
+                "strategy": "B3_NoFixedElasticByPriority",
+                "strategy_hyperparameters": {
+                    "_comment_ema": "EMA系统参数",
+                    "alpha_slow": 0.1,
+                    "alpha_fast": 0.7,
+                    
+                    "_comment_h_factor": "H因子参数",
+                    "hr_base": 0.5,
+                    
+                    "_comment_v_factor": "V因子参数 + EMA平滑",
+                    "v_factor_ema_alpha": 0.3,
+                    
+                    "_comment_alpha_t": "动态权重参数",
+                    "freeze_alpha_t": false,
+                    "initial_alpha_t": 0.5,
+                    
+                    "_comment_gradient": "梯度下降参数",
+                    "gradient_learning_rate": 0.7,
+                    "gradient_momentum": 0.3,
+                    "gradient_min_step_pages": 2,
+                    "gradient_max_step_pages": 200,
+                    "oscillation_threshold": 3,
+                    "oscillation_dampening": 0.5,
+                    "gradient_stability_threshold": 0.01,
+                    "gradient_stability_cycles": 3
+                }
+            }
+        },
+        "B4_IndividualOptimizedCache": {
+            "active": true,
+            "strategy_name": "B4_IndividualOptimizedCache",
+            "adjustment_interval_seconds": 8,
+            "description": "Baseline B4 (Selfish): DBs steal cache from each other based on miss rate.",
+            "strategy_config": {
+                "b4_config": {
+                   "page_transfer_increment": 100
+                }
+            }
+        },
+        "B5_SimulatedGlobalLru": {
+            "active": true,
+            "strategy_name": "B5_SimulatedGlobalLru",
+            "adjustment_interval_seconds": 8,
+            "description": "Simulates a true global LRU (not fully implemented)."
+        },
+        "B6_DataSizeProportionalStatic": {
+            "active": true,
+            "strategy_name": "B6_DataSizeProportionalStatic",
+            "description": "静态分配，根据各数据库文件大小按比例分配总缓存"
+        },
+        "B7_DYNAMIC_NEED": {
+            "active": true,
+            "strategy_name": "B7_DYNAMIC_NEED",
+            "description": "Baseline B7: Dynamic need-based allocation (ops * miss_rate) with single-speed EMA smoothing.",
+            "fixed_pool_percentage_of_total_ram": 0.3,
+            "adjustment_interval_seconds": 8,
+            "ema_alpha": 0.1
+        },
+        "B8_EFFICIENCY_ONLY": {
+            "active": true,
+            "strategy_name": "B8_EFFICIENCY_ONLY",
+            "description": "Baseline B8 (Ablation): S0策略的消融实验 - 移除纵向因子，只有横向因子(H)",
+            "fixed_pool_percentage_of_total_ram": 0.3,
+            "adjustment_interval_seconds": 8,
+            "noop_mode": false,
+            "strategy_config": {
+                "strategy": "B8_EFFICIENCY_ONLY",
+                "strategy_hyperparameters": {
+                    "alpha_slow": 0.1,
+                    "alpha_fast": 0.7,
+                    "smart_cooldown_enabled": true,
+                    "smart_cooldown_turns": 3,
+                    "strategic_change_threshold": 2.0,
+                    "reality_check_noise_margin": -0.5,
+                    "min_allocation_change_pct": 0.2,
+                    "hr_base": 0.5,
+                    "hr_norm_decay_factor": 0.99,
+                    "hr_norm_update_threshold": 0.02,
+                    "hr_norm_p95_window_size": 10,
+                    "hr_norm_max_stagnant_cycles": 15,
+                    "eta0": 1.0,
+                    "eta_floor": 0.04,
+                    "cv_sigmoid_center": 1.5,
+                    "cv_sigmoid_slope": 2.0,
+                    "T_max_epoch": 500,
+                    "champion_consecutive_threshold": 3,
+                    "freeze_alpha_t": false,
+                    "initial_alpha_t": 0.5,
+                    
+                    "_comment_v_factor_system": "新的V因子实验系统配置",
+                    "v_factor_enabled": true,
+                    "v_factor_min_change_pct": 0.03,
+                    "v_factor_max_experiments": 5,
+                    "v_factor_max_experiment_age": 180,
+                    "v_factor_max_history_size": 30,
+                    "v_factor_quality_threshold": 0.4,
+                    "v_factor_result_cache_size": 15,
+                    "v_factor_cleanup_interval": 300,
+                    
+                    "_comment_v_factor_calculation": "V因子计算配置",
+                    "v_factor_max_reasonable_value": 0.02,
+                    "v_factor_confidence_interval_max_width": 0.01,
+                    "v_factor_significance_level": 0.2,
+                    
+                    "_comment_logging": "日志控制",
+                    "verbose_logging": false,
+                    
+                    "_comment_audit_system": "V因子审计系统参数",
+                    "audit_enabled": true,
+                    "audit_observation_cycles": 3,
+                    "audit_confidence_weight": 1.0,
+                    "audit_min_consistency": 0.6,
+                    "audit_max_std_dev": 0.01,
+                    
+                    "_comment_v_normalization": "V因子归一化参数",
+                    "v_factor_scaling_factor": 1000.0,
+                    
+                    "_comment_knee_detection": "膝点检测核心成员识别参数",
+                    "knee_sensitivity": 1.0,
+                    "min_knee_gain": 0.1,
+                    "min_core_members": 1,
+                    "max_core_members_ratio": 0.5,
+                    
+                    "_comment_gradient_mode": "增量调整分配系统参数（原双梯度已改为增量调整）",
+                    "gradient_mode": true,
+                    "gradient_base_learning_rate": 0.1,
+                    "gradient_momentum": 0.7,
+                    "gradient_max_step_pages": 200,
+                    "gradient_lr_decay_rate": 0.05,
+                    "gradient_min_learning_rate": 0.02,
+                    
+                    "_comment_incremental_adjustment": "增量调整机制参数",
+                    "incremental_base_step_size": 0.1,
+                    "incremental_momentum_beta": 0.5,
+                    "incremental_min_step_size": 0.02,
+                    "incremental_max_step_size": 0.8,
+                    "incremental_major_change_pct": 0.25,
+                    "incremental_conservative_step_size": 0.15,
+                    "incremental_aggressive_step_size": 0.7,
+                    "incremental_verified_hotspot_step_size": 0.95
+                }
+            }
+        },
+        "B9_EMG_AS_SINGLE_EMA": {
+            "active": true,
+            "strategy_name": "B9_EMG_AS_SINGLE_EMA",
+            "description": "Baseline B9 (Ablation): S0策略的消融实验 - 移除双速EMA机制，只有慢速EMA",
+            "fixed_pool_percentage_of_total_ram": 0.3,
+            "adjustment_interval_seconds": 8,
+            "noop_mode": false,
+            "strategy_config": {
+                "strategy": "B9_EMG_AS_SINGLE_EMA",
+                "strategy_hyperparameters": {
+                    "alpha_slow": 0.1,
+                    "alpha_fast": 0.7,
+                    "smart_cooldown_enabled": true,
+                    "smart_cooldown_turns": 3,
+                    "strategic_change_threshold": 2.0,
+                    "reality_check_noise_margin": -0.5,
+                    "min_allocation_change_pct": 0.2,
+                    "hr_base": 0.5,
+                    "hr_norm_decay_factor": 0.99,
+                    "hr_norm_update_threshold": 0.02,
+                    "hr_norm_p95_window_size": 10,
+                    "hr_norm_max_stagnant_cycles": 15,
+                    "eta0": 1.0,
+                    "eta_floor": 0.04,
+                    "cv_sigmoid_center": 1.5,
+                    "cv_sigmoid_slope": 2.0,
+                    "T_max_epoch": 500,
+                    "champion_consecutive_threshold": 3,
+                    "freeze_alpha_t": false,
+                    "initial_alpha_t": 0.5,
+                    
+                    "_comment_v_factor_system": "新的V因子实验系统配置",
+                    "v_factor_enabled": true,
+                    "v_factor_min_change_pct": 0.03,
+                    "v_factor_max_experiments": 5,
+                    "v_factor_max_experiment_age": 180,
+                    "v_factor_max_history_size": 30,
+                    "v_factor_quality_threshold": 0.4,
+                    "v_factor_result_cache_size": 15,
+                    "v_factor_cleanup_interval": 300,
+                    
+                    "_comment_v_factor_calculation": "V因子计算配置",
+                    "v_factor_max_reasonable_value": 0.02,
+                    "v_factor_confidence_interval_max_width": 0.01,
+                    "v_factor_significance_level": 0.2,
+                    
+                    "_comment_logging": "日志控制",
+                    "verbose_logging": false,
+                    
+                    "_comment_audit_system": "V因子审计系统参数",
+                    "audit_enabled": true,
+                    "audit_observation_cycles": 3,
+                    "audit_confidence_weight": 1.0,
+                    "audit_min_consistency": 0.6,
+                    "audit_max_std_dev": 0.01,
+                    
+                    "_comment_v_normalization": "V因子归一化参数",
+                    "v_factor_scaling_factor": 1000.0,
+                    
+                    "_comment_knee_detection": "膝点检测核心成员识别参数",
+                    "knee_sensitivity": 1.0,
+                    "min_knee_gain": 0.1,
+                    "min_core_members": 1,
+                    "max_core_members_ratio": 0.5,
+                    
+                    "_comment_gradient_mode": "增量调整分配系统参数（原双梯度已改为增量调整）",
+                    "gradient_mode": true,
+                    "gradient_base_learning_rate": 0.1,
+                    "gradient_momentum": 0.7,
+                    "gradient_max_step_pages": 200,
+                    "gradient_lr_decay_rate": 0.05,
+                    "gradient_min_learning_rate": 0.02,
+                    
+                    "_comment_incremental_adjustment": "增量调整机制参数",
+                    "incremental_base_step_size": 0.1,
+                    "incremental_momentum_beta": 0.5,
+                    "incremental_min_step_size": 0.02,
+                    "incremental_max_step_size": 0.8,
+                    "incremental_major_change_pct": 0.25,
+                    "incremental_conservative_step_size": 0.15,
+                    "incremental_aggressive_step_size": 0.7,
+                    "incremental_verified_hotspot_step_size": 0.95
+                }
+            }
+        },
+        "B10_Pure_V_Factor": {
+            "active": true,
+            "strategy_name": "B10_Pure_V_Factor",
+            "description": "Baseline B10 (Ablation): S0策略的消融实验 - 纯V因子策略，展示纯边际增益的局限性",
+            "fixed_pool_percentage_of_total_ram": 0.3,
+            "adjustment_interval_seconds": 8,
+            "noop_mode": false,
+            "strategy_config": {
+                "strategy": "B10_Pure_V_Factor",
+                "strategy_hyperparameters": {
+                    "alpha_slow": 0.1,
+                    "alpha_fast": 0.7,
+                    "smart_cooldown_enabled": true,
+                    "smart_cooldown_turns": 3,
+                    "strategic_change_threshold": 2.0,
+                    "reality_check_noise_margin": -0.5,
+                    "min_allocation_change_pct": 0.2,
+                    "hr_base": 0.5,
+                    "hr_norm_decay_factor": 0.99,
+                    "hr_norm_update_threshold": 0.02,
+                    "hr_norm_p95_window_size": 10,
+                    "hr_norm_max_stagnant_cycles": 15,
+                    "eta0": 1.0,
+                    "eta_floor": 0.04,
+                    "cv_sigmoid_center": 1.5,
+                    "cv_sigmoid_slope": 2.0,
+                    "T_max_epoch": 500,
+                    "champion_consecutive_threshold": 3,
+                    "freeze_alpha_t": false,
+                    "initial_alpha_t": 0.5,
+                    
+                    "_comment_v_factor_system": "新的V因子实验系统配置",
+                    "v_factor_enabled": true,
+                    "v_factor_min_change_pct": 0.03,
+                    "v_factor_max_experiments": 5,
+                    "v_factor_max_experiment_age": 180,
+                    "v_factor_max_history_size": 30,
+                    "v_factor_quality_threshold": 0.4,
+                    "v_factor_result_cache_size": 15,
+                    "v_factor_cleanup_interval": 300,
+                    
+                    "_comment_v_factor_calculation": "V因子计算配置",
+                    "v_factor_max_reasonable_value": 0.02,
+                    "v_factor_confidence_interval_max_width": 0.01,
+                    "v_factor_significance_level": 0.2,
+                    
+                    "_comment_logging": "日志控制",
+                    "verbose_logging": false,
+                    
+                    "_comment_audit_system": "V因子审计系统参数",
+                    "audit_enabled": true,
+                    "audit_observation_cycles": 3,
+                    "audit_confidence_weight": 1.0,
+                    "audit_min_consistency": 0.6,
+                    "audit_max_std_dev": 0.01,
+                    
+                    "_comment_v_normalization": "V因子归一化参数",
+                    "v_factor_scaling_factor": 1000.0,
+                    
+                    "_comment_knee_detection": "膝点检测核心成员识别参数",
+                    "knee_sensitivity": 1.0,
+                    "min_knee_gain": 0.1,
+                    "min_core_members": 1,
+                    "max_core_members_ratio": 0.5,
+                    
+                    "_comment_gradient_mode": "增量调整分配系统参数（原双梯度已改为增量调整）",
+                    "gradient_mode": true,
+                    "gradient_base_learning_rate": 0.1,
+                    "gradient_momentum": 0.7,
+                    "gradient_max_step_pages": 200,
+                    "gradient_lr_decay_rate": 0.05,
+                    "gradient_min_learning_rate": 0.02,
+                    
+                    "_comment_incremental_adjustment": "增量调整机制参数",
+                    "incremental_base_step_size": 0.1,
+                    "incremental_momentum_beta": 0.5,
+                    "incremental_min_step_size": 0.02,
+                    "incremental_max_step_size": 0.8,
+                    "incremental_major_change_pct": 0.25,
+                    "incremental_conservative_step_size": 0.15,
+                    "incremental_aggressive_step_size": 0.7,
+                    "incremental_verified_hotspot_step_size": 0.95
+                }
+            }
+        },
+        "B11_ML_Driven": {
+            "active": true,
+            "strategy_name": "B11_ML_Driven",
+            "description": "ML-driven strategy: Enhanced lightweight learning-based allocation with adaptive actions and smoothing.",
+            "fixed_pool_percentage_of_total_ram": 0.3,
+            "adjustment_interval_seconds": 16,
+            "strategy_config": {
+                "strategy": "B11_ML_Driven",
+                "strategy_hyperparameters": {
+                    "training_buffer_size": 100,
+                    "prediction_deltas": [-200, -100, 100, 200],
+                    "min_allocation_change_pct": 0.1,
+                    "cold_start_ops_threshold": 20,
+                    "action_scale_ratio": 0.1,
+                    "smoothing_factor": 0.3,
+                    "min_action_size": 50,
+                    "min_training_samples": 10
+                }
+            }
+        },
+        "B12_MT_LRU_Inspired": {
+            "active": true,
+            "strategy_name": "B12_MT_LRU_Inspired",
+            "description": "MT-LRU-like strategy: SLA-driven allocation prioritizing instances that fail to meet hit rate targets.",
+            "fixed_pool_percentage_of_total_ram": 0.3,
+            "adjustment_interval_seconds": 8,
+            "strategy_config": {
+                "strategy": "B12_MT_LRU_Inspired",
+                "strategy_hyperparameters": {
+                    "sla_huge_weight": 1000000.0,
+                    "target_hit_rates": {
+                        "db_high_priority": 0.664,
+                        "db_medium_priority": 0.597,
+                        "db_low_priority": 0
+                    },
+                    "min_allocation_change_pct": 0.1
+                }
+            }
+        },
+        "B12_SLA_Firefighter": {
+            "active": true,
+            "strategy_name": "B12_SLA_Firefighter",
+            "description": "MT-LRU-like strategy: SLA-driven allocation prioritizing instances that fail to meet hit rate targets. (Alias for B12_MT_LRU_Inspired)",
+            "fixed_pool_percentage_of_total_ram": 0.3,
+            "adjustment_interval_seconds": 8,
+            "strategy_config": {
+                "strategy": "B12_SLA_Firefighter",
+                "strategy_hyperparameters": {
+                    "sla_huge_weight": 1000000.0,
+                    "target_hit_rates": {
+                        "db_high_priority": 0.664,
+                        "db_medium_priority": 0.597,
+                        "db_low_priority": 0
+                    },
+                    "min_allocation_change_pct": 0.1
+                }
+            }
+        },
+        "B13_Active_Sampling": {
+            "active": true,
+            "strategy_name": "B13_Active_Sampling",
+            "description": "Tiered UCP Strategy: SLA-aware baseline with pure UCP (保底池 + 弹性池跑纯UCP)",
+            "fixed_pool_percentage_of_total_ram": 0.0,
+            "adjustment_interval_seconds": 5,
+            "noop_mode": false,
+            "strategy_config": {
+                "strategy": "B13_Active_Sampling",
+                "strategy_hyperparameters": {
+                    "base_pages": 50,
+                    "move_cap": 0.05,
+                    "ema_alpha": 0.3,
+                    "min_pages_per_db": 10,
+                    "measurement_window": 3
+                }
+            }
+        },
+        "B14_Smooth_OPT": {
+            "active": true,
+            "strategy_name": "B14_Smooth_OPT",
+            "description": "Smooth-OPT Strategy: Oracle with gradual adjustment constraints representing theoretical upper bound",
+            "fixed_pool_percentage_of_total_ram": 0.0,
+            "adjustment_interval_seconds": 5,
+            "noop_mode": false,
+            "strategy_config": {
+                "strategy": "B14_Smooth_OPT",
+                "strategy_hyperparameters": {
+                    "require_real_probe": true,
+                    "use_simulated_if_missing": false,
+                    "delta_alloc_limit": 50,
+                    "min_pages_per_db": 10,
+                    "optimal_allocations_file": "results/b14_optimal_allocations.json"
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.class
+*.so
+.Python
+venv/
+ENV/
+
+# Data and results
+data/
+results/
+docs/
+figures/
+*.sqlite
+*.db
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*~
+
+# Root directory files (except LICENSE, README.md, requirements.txt)
+/*.md
+!README.md
+/*.py
+/*.txt
+!requirements.txt
+!LICENSE
+run_output.txt
+BURST_SCAN_*.md
+CONFIG_*.md
+debug_*.py

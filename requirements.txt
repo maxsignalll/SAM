@@ -1,0 +1,17 @@
+# SAM: Spatially-Aware Memory - Python Dependencies
+# Install with: pip install -r requirements.txt
+
+# Core dependencies
+apsw>=3.40.0          # Advanced SQLite Python wrapper for cache management
+numpy>=1.21.0         # Numerical computations for strategy algorithms
+pandas>=1.5.0         # Data analysis and results processing
+psutil>=5.9.0         # System monitoring and resource tracking
+
+# Visualization
+matplotlib>=3.5.0     # Result plotting and visualization
+seaborn>=0.11.0       # Statistical data visualization
+
+# Optional but recommended for development
+# pytest>=6.0.0       # For running tests
+# black>=22.0.0       # Code formatting
+# flake8>=4.0.0       # Code linting

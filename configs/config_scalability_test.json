@@ -1,0 +1,143 @@
+{
+    "general_experiment_setup": {
+        "experiment_name": "Type3_Scalability_Test",
+        "workload_mode": "static",
+        "workload_type": "ycsb",
+        "random_seed": 42,
+        "output_directory": "results",
+        "log_level": "INFO",
+        "active_strategy": "S0_EMG_AS",
+        "reporting_interval_seconds": 4,
+        "measurement_interval_seconds": 4,
+        "data_collection_timeout_seconds": 1.0,
+        "save_logs": true,
+        "experimental_design": {
+            "type": "scalability_test",
+            "description": "Systematic scalability evaluation of S0 strategy across different database counts to measure CPU overhead and algorithm complexity",
+            "rationale": "Test the O(N) complexity claim of S0 strategy by measuring CPU decision time across database counts from 20 to 160",
+            "controlled_variables": [
+                "total_cache_size_per_db",
+                "workload_pattern_per_db", 
+                "data_size_per_db",
+                "tps_per_database"
+            ],
+            "varying_parameter": "num_databases"
+        },
+        "scalability_test_config": {
+            "database_counts": [20, 40, 80, 120, 160],
+            "test_duration_per_scale": 180,
+            "warmup_duration": 30,
+            "cooldown_duration": 10,
+            "cpu_sampling_interval": 1.0,
+            "min_samples_per_scale": 100,
+            "runs_per_scale": 3
+        }
+    },
+    "system_sqlite_config": {
+        "page_size_bytes": 4096,
+        "total_ram_for_cache_mb": 20
+    },
+    "cache_miss_simulation": {
+        "enabled": false,
+        "miss_penalty_ms": 0,
+        "compensation_method": "none",
+        "description": "Disabled to focus on pure CPU performance measurement"
+    },
+    "dynamic_workload_phases": [
+        {
+            "name": "Scalability_Steady_State",
+            "duration_seconds": "DYNAMIC",
+            "ycsb_config_overrides": {
+                "threadcount": 8,
+                "tps_distribution_template": {
+                    "per_database_tps": 2,
+                    "distribution_type": "uniform"
+                },
+                "access_pattern_template": {
+                    "distribution": "zipfian",
+                    "zipf_alpha": 0.9
+                }
+            }
+        }
+    ],
+    "database_instances": {
+        "template_config": {
+            "priority": 5,
+            "record_count": 10000,
+            "database_path": "data/",
+            "description": "Template for auto-generated scalability test databases"
+        },
+        "auto_generation": {
+            "enabled": true,
+            "prefix": "scale_db_",
+            "count_source": "scalability_test_config.database_counts"
+        }
+    },
+    "ycsb_general_config": {
+        "ycsb_row_size_bytes": 2048,
+        "operation_distribution": {
+            "read": 0.8,
+            "update": 0.2,
+            "insert": 0,
+            "scan": 0.0,
+            "read_modify_write": 0.0
+        },
+        "scalability_experiment": {
+            "enabled": true,
+            "total_database_count": "DYNAMIC",
+            "background_db_prefix": "scale_db_",
+            "background_db_priority": 5,
+            "background_db_record_count": 10000,
+            "background_db_path": "data/",
+            "_comment": "Scalability experiment - database count determined by test configuration"
+        }
+    },
+    "strategy_configurations": {
+        "S0_EMG_AS": {
+            "active": true,
+            "strategy_name": "S0_EMG_AS",
+            "description": "S0 Strategy for Scalability Testing with CPU timing enabled",
+            "fixed_pool_percentage_of_total_ram": 0.3,
+            "adjustment_interval_seconds": 8,
+            "noop_mode": false,
+            "strategy_config": {
+                "strategy": "S0_EMG_AS",
+                "scalability_timing": {
+                    "enabled": true,
+                    "sample_every_nth_decision": 1,
+                    "high_precision_timing": true,
+                    "export_raw_timings": true,
+                    "timing_output_file": "scalability_cpu_timings.json"
+                },
+                "strategy_hyperparameters": {
+                    "alpha_slow": 0.1,
+                    "alpha_fast": 0.7,
+                    "smart_cooldown_turns": 3,
+                    "min_allocation_change_pct": 0.2,
+                    "hr_base": 0.5,
+                    "hr_norm_decay_factor": 0.99,
+                    "hr_norm_update_threshold": 0.02,
+                    "hr_norm_p95_window_size": 10,
+                    "hr_norm_max_stagnant_cycles": 15,
+                    "freeze_alpha_t": true,
+                    "initial_alpha_t": 0.5,
+                    "use_dual_track_v": false,
+                    "use_importance_urgency_matrix": false,
+                    "use_progressive_allocation": false,
+                    "knee_sensitivity": 1.0,
+                    "min_knee_gain": 0.1,
+                    "min_core_members": 1,
+                    "max_core_members_ratio": 0.5,
+                    "marginal_gain_grace_period_cycles": 0,
+                    "enable_reality_check": false,
+                    "bypass_v_factor_normalization": false,
+                    "bypass_grace_period": true,
+                    "enable_champion_epoch": false,
+                    "max_epoch_cycles": 50,
+                    "champion_consecutive_threshold": 3,
+                    "bypass_variance_alpha": true
+                }
+            }
+        }
+    }
+}
