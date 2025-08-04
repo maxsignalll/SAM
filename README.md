@@ -156,7 +156,6 @@ SAM-reproducible/
 - `B11_ML_Driven` → **B11** → Machine learning based
 - `B12_MT_LRU_Inspired` → **B12** → MT-LRU inspired SLA-based
 - `B13_Active_Sampling` → **B13** → Active sampling strategy (UCP-inspired)
-- `B14_Smooth_OPT` → **B14** → Smooth optimization strategy
 
 ## Figure Mapping to Paper
 
