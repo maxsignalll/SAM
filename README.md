@@ -28,8 +28,8 @@ To provide a faithful evaluation, our artifact measures the raw **hit and miss c
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/SAM-reproducible.git
-cd SAM-reproducible
+git clone https://github.com/maxsignalll/SAM.git
+cd SAM
 
 # Create virtual environment
 python -m venv venv
