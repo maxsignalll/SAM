@@ -355,19 +355,19 @@ class YCSBWorkload(BaseWorkload):
             return self.hot_spot_set[idx]
             
         elif self.access_pattern == 'zipfian':
-            # Use Zipfian distribution
+            # Use Zipfian distribution within hot spot set
             if self.zipf_gen:
                 zipf_idx = next(self.zipf_gen)
                 # Ensure index is within range
                 zipf_idx = min(zipf_idx, len(self.hot_spot_set) - 1)
                 return self.hot_spot_set[zipf_idx]
             else:
-                # Downgrade to uniform distribution
+                # Downgrade to uniform distribution within hot spot set
                 idx = self.rng.randint(0, len(self.hot_spot_set) - 1)
                 return self.hot_spot_set[idx]
                 
         else:
-            # Unknown mode, use uniform distribution
+            # Unknown mode, use uniform distribution within hot spot set
             idx = self.rng.randint(0, len(self.hot_spot_set) - 1)
             return self.hot_spot_set[idx]
             

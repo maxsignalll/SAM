@@ -2327,13 +2327,8 @@ def generate_experiment2_analysis(comparison, dual_combat_results, burst_scan_re
         
         # Define phase boundaries for accurate comparison (updated to match new config)
         phase_boundaries = [
-            (0, 30, 'Phase1_Baseline'),
-            (30, 90, 'Phase2A_Normal'),
-            (90, 105, 'Phase2B_Burst_Scan'),
-            (105, 165, 'Phase2C_Recovery'),
-            (165, 195, 'Phase2D_Second_Burst'),  # Extended to 30 seconds
-            (195, 240, 'Phase2E_Final_Normal'),   # Adjusted start time
-            (240, 300, 'Phase3_Competition')
+            (0, 30, 'Phase1_All_Silent'),
+            (30, 60, 'Phase2_Attacker_Uniform')
         ]
         
         # Mark phases based on ABSOLUTE elapsed time (not the relative elapsed_seconds)
@@ -2348,39 +2343,53 @@ def generate_experiment2_analysis(comparison, dual_combat_results, burst_scan_re
             phases.append(phase)
         b7_data['accurate_phase'] = phases
         
-        # Filter high priority database
-        high_priority = b7_data[b7_data['db_id'] == 'db_high_priority'].copy()
+        # Filter attacker database (db_bg_1 or fallback to db_high_priority)
+        high_priority = b7_data[b7_data['db_id'] == 'db_bg_1'].copy()
+        if high_priority.empty:
+            high_priority = b7_data[b7_data['db_id'] == 'db_high_priority'].copy()
         
         # Calculate need scores
         high_priority['miss_rate'] = 1 - high_priority['cache_hit_rate']
         high_priority['ops_per_second'] = high_priority['ops_count'] / 4.0
         high_priority['need_score'] = high_priority['ops_per_second'] * high_priority['miss_rate']
         
-        # Compare Phase2A_Normal (30-90s) vs Phase2D_Second_Burst (165-180s)
-        phase2a_data = high_priority[high_priority['accurate_phase'] == 'Phase2A_Normal']
-        phase2d_data = high_priority[high_priority['accurate_phase'] == 'Phase2D_Second_Burst']
+        # Compare Phase1_Both_Zipfian (0-30s) vs Phase2_BG1_Uniform (30-60s)
+        phase1_data = high_priority[high_priority['accurate_phase'] == 'Phase1_Both_Zipfian']
+        phase2_data = high_priority[high_priority['accurate_phase'] == 'Phase2_BG1_Uniform']
         
-        if not phase2a_data.empty and not phase2d_data.empty:
-            # Calculate Phase2A averages
-            need_score_phase2a = phase2a_data['need_score'].mean()
-            cache_phase2a = phase2a_data['current_cache_pages'].mean()
+        # Fallback for backward compatibility
+        if phase1_data.empty:
+            phase1_data = high_priority[high_priority['accurate_phase'] == 'Phase1_All_Silent']
+        if phase2_data.empty:
+            phase2_data = high_priority[high_priority['accurate_phase'] == 'Phase2_Attacker_Uniform']
+        
+        if not phase1_data.empty and not phase2_data.empty:
+            # Phase1: Take the second data point
+            if len(phase1_data) >= 2:
+                need_score_phase1 = phase1_data['need_score'].iloc[1]
+                cache_phase1 = phase1_data['current_cache_pages'].iloc[1]
+            else:
+                # Fallback to first point if only one exists
+                need_score_phase1 = phase1_data['need_score'].iloc[0]
+                cache_phase1 = phase1_data['current_cache_pages'].iloc[0]
             
-            # Calculate Phase2D averages
-            need_score_phase2d = phase2d_data['need_score'].mean()
-            cache_phase2d = phase2d_data['current_cache_pages'].mean()
+            # Phase2: Take the maximum need_score point
+            max_need_idx = phase2_data['need_score'].idxmax()
+            need_score_phase2 = phase2_data.loc[max_need_idx, 'need_score']
+            cache_phase2 = phase2_data.loc[max_need_idx, 'current_cache_pages']
             
-            # Calculate changes (matching original 11.7% and 64.5%)
-            need_score_increase = (need_score_phase2d - need_score_phase2a) / need_score_phase2a * 100
-            cache_increase = (cache_phase2d - cache_phase2a) / cache_phase2a * 100
+            # Calculate changes
+            need_score_increase = (need_score_phase2 - need_score_phase1) / need_score_phase1 * 100 if need_score_phase1 != 0 else 0
+            cache_increase = (cache_phase2 - cache_phase1) / cache_phase1 * 100 if cache_phase1 != 0 else 0
             overreaction_factor = cache_increase / need_score_increase if need_score_increase != 0 else 0
             
-            print(f"\n📊 Burst Scan Analysis Results (Phase2A vs Phase2D):")
-            print(f"   Phase2A_Normal (30-90s):")
-            print(f"     - Need Score: {need_score_phase2a:.3f}")
-            print(f"     - Cache Pages: {cache_phase2a:.1f}")
-            print(f"   Phase2D_Second_Burst (165-180s):")
-            print(f"     - Need Score: {need_score_phase2d:.3f}")
-            print(f"     - Cache Pages: {cache_phase2d:.1f}")
+            print(f"\n📊 Burst Scan Analysis Results (Phase1 vs Phase2):")
+            print(f"   Phase1_All_Silent (0-30s):")
+            print(f"     - Need Score: {need_score_phase1:.3f}")
+            print(f"     - Cache Pages: {cache_phase1:.1f}")
+            print(f"   Phase2_Attacker_Uniform (30-60s):")
+            print(f"     - Need Score: {need_score_phase2:.3f}")
+            print(f"     - Cache Pages: {cache_phase2:.1f}")
             print(f"   Changes:")
             print(f"     - Need Score Increase: {need_score_increase:.1f}%")
             print(f"     - Cache Allocation Increase: {cache_increase:.1f}%")
